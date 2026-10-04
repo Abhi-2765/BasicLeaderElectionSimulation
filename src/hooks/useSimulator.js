@@ -1,41 +1,41 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { init, step, validateIds } from '../engine/lcr.js';
+import { init, step, validateIds } from '../algo/basicLE.js';
 import { toast } from 'react-toastify';
 
-const DEFAULT_IDS = [5, 12, 3, 9, 7];
+const DEFAULT_IDS = [1, 2, 3, 4, 5];
 
-export function useSimStore() {
+export function useSimulator() {
   const [ids, setIdsState] = useState(DEFAULT_IDS);
   const [mode, setModeState] = useState('min');
+  const [direction, setDirectionState] = useState('cw');
   const [validation, setValidation] = useState(() => validateIds(DEFAULT_IDS));
-  const [simState, setSimState] = useState(() => init(DEFAULT_IDS, 'min'));
-  const [historyStack, setHistoryStack] = useState(() => [init(DEFAULT_IDS, 'min')]);
+  const [simState, setSimState] = useState(() => init(DEFAULT_IDS, 'min', 'cw'));
+  const [historyStack, setHistoryStack] = useState(() => [init(DEFAULT_IDS, 'min', 'cw')]);
   const [latestEvents, setLatestEvents] = useState([]);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1);
-  const [activeHighlightedNode, setActiveHighlightedNode] = useState(null);
+  const [speed, setSpeed] = useState(0.5);
   const [isAnimating, setIsAnimating] = useState(false);
 
   const timerRef = useRef(null);
 
-  const resetToIds = useCallback((newIds, newMode = mode) => {
+  const resetToIds = useCallback((newIds, newMode = mode, newDir = direction) => {
     const validResult = validateIds(newIds);
     setValidation(validResult);
     if (validResult.valid) {
       const cleanIds = newIds.map(Number);
-      const initial = init(cleanIds, newMode);
+      const initial = init(cleanIds, newMode, newDir);
       setSimState(initial);
       setHistoryStack([initial]);
       setLatestEvents([]);
       setIsPlaying(false);
       setIsAnimating(false);
     }
-  }, [mode]);
+  }, [mode, direction]);
 
   const setIds = useCallback((newIds) => {
     setIdsState(newIds);
-    resetToIds(newIds, mode);
-  }, [mode, resetToIds]);
+    resetToIds(newIds, mode, direction);
+  }, [mode, direction, resetToIds]);
 
   const updateNodeId = useCallback((index, rawVal) => {
     const updated = [...ids];
@@ -51,16 +51,16 @@ export function useSimStore() {
     }
 
     setIdsState(updated);
-    resetToIds(updated, mode);
-  }, [ids, mode, resetToIds]);
+    resetToIds(updated, mode, direction);
+  }, [ids, mode, direction, resetToIds]);
 
   const swapNodes = useCallback((indexA, indexB) => {
     if (indexA === indexB || indexA < 0 || indexB < 0 || indexA >= ids.length || indexB >= ids.length) return;
     const updated = [...ids];
     [updated[indexA], updated[indexB]] = [updated[indexB], updated[indexA]];
     setIdsState(updated);
-    resetToIds(updated, mode);
-  }, [ids, mode, resetToIds]);
+    resetToIds(updated, mode, direction);
+  }, [ids, mode, direction, resetToIds]);
 
   const addNode = useCallback(() => {
     if (ids.length >= 20) return;
@@ -68,20 +68,28 @@ export function useSimStore() {
     const nextVal = nums.length > 0 ? Math.max(...nums) + 1 : 1;
     const updated = [...ids, nextVal];
     setIdsState(updated);
-    resetToIds(updated, mode);
-  }, [ids, mode, resetToIds]);
+    resetToIds(updated, mode, direction);
+  }, [ids, mode, direction, resetToIds]);
 
   const removeNode = useCallback((index) => {
-    if (ids.length <= 2) return;
+    if (ids.length <= 3) {
+      toast.warning('A ring must have at least 3 nodes.', { toastId: 'min-nodes-warning' });
+      return;
+    }
     const updated = ids.filter((_, i) => i !== index);
     setIdsState(updated);
-    resetToIds(updated, mode);
-  }, [ids, mode, resetToIds]);
+    resetToIds(updated, mode, direction);
+  }, [ids, mode, direction, resetToIds]);
 
   const setMode = useCallback((newMode) => {
     setModeState(newMode);
-    resetToIds(ids, newMode);
-  }, [ids, resetToIds]);
+    resetToIds(ids, newMode, direction);
+  }, [ids, direction, resetToIds]);
+
+  const setDirection = useCallback((newDir) => {
+    setDirectionState(newDir);
+    resetToIds(ids, mode, newDir);
+  }, [ids, mode, resetToIds]);
 
   const randomize = useCallback(() => {
     const n = ids.length || 5;
@@ -89,8 +97,8 @@ export function useSimStore() {
     while (pool.size < n) pool.add(Math.floor(Math.random() * 80) + 1);
     const newIds = Array.from(pool);
     setIdsState(newIds);
-    resetToIds(newIds, mode);
-  }, [ids.length, mode, resetToIds]);
+    resetToIds(newIds, mode, direction);
+  }, [ids.length, mode, direction, resetToIds]);
 
   const stepForward = useCallback(() => {
     if (!validation.valid || simState.done || isAnimating) return;
@@ -99,14 +107,17 @@ export function useSimStore() {
     const { next, events } = step(simState);
     setLatestEvents(events);
 
-    // Give a packet time to arrive, then let its outcome (drop, forward, or
-    // election) be visible before the next state replaces the current one.
     const animDuration = Math.round(1050 / speed);
     setTimeout(() => {
       setSimState(next);
       setHistoryStack((prev) => [...prev, next]);
       setIsAnimating(false);
 
+      if (next.done && !simState.done) {
+        toast.success(`Node-${next.leaderIndex} (ID ${next.leaderId}) is the new Leader!`, {
+          toastId: 'leader-elected',
+        });
+      }
     }, animDuration);
   }, [validation.valid, simState, isAnimating, speed]);
 
@@ -124,12 +135,10 @@ export function useSimStore() {
   }, [historyStack, isAnimating]);
 
   const reset = useCallback(() => {
-    // When a field is temporarily invalid, restore the last runnable ring
-    // instead of attempting to initialise from the incomplete value.
     const resetIds = validation.valid ? ids : simState.nodes.map((node) => node.id);
     setIdsState(resetIds);
-    resetToIds(resetIds, mode);
-  }, [ids, mode, resetToIds, simState.nodes, validation.valid]);
+    resetToIds(resetIds, mode, direction);
+  }, [ids, mode, direction, resetToIds, simState.nodes, validation.valid]);
 
   useEffect(() => {
     if (!isPlaying || simState.done) {
@@ -144,9 +153,8 @@ export function useSimStore() {
 
   return {
     ids, setIds, updateNodeId, swapNodes, addNode, removeNode,
-    mode, setMode, validation, simState, historyStack, latestEvents,
+    mode, setMode, direction, setDirection, validation, simState, historyStack, latestEvents,
     isPlaying, setIsPlaying, speed, setSpeed,
-    activeHighlightedNode, setActiveHighlightedNode,
     stepForward, stepBack, reset, randomize, isAnimating,
   };
 }

@@ -1,20 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { RingCanvas } from './components/Ring/RingCanvas.jsx';
 import { RoundTable } from './components/Log/RoundTable.jsx';
-import { useSimStore } from './state/useSimStore.js';
+import { useSimulator } from './hooks/useSimulator.js';
 
 export default function App() {
-  const store = useSimStore();
-  const [darkMode, setDarkMode] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('theme') === 'dark'
-      || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  });
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', darkMode);
-    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
-  }, [darkMode]);
+  const store = useSimulator();
 
   const canStep = store.validation.valid && !store.simState.done && !store.isAnimating;
   const canGoBack = store.historyStack.length > 1 && !store.isAnimating;
@@ -24,26 +14,23 @@ export default function App() {
   const nodeCount = store.simState.nodes.length;
 
   return (
-    <div className="min-h-screen bg-theme-bg text-theme-text font-sans transition-colors selection:bg-stone-300 dark:selection:bg-slate-700 pb-16">
+    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] font-sans selection:bg-stone-300 pb-16">
       <main className="w-full px-2 py-1 sm:px-3 sm:py-2 lg:px-6">
         <section className="relative flex h-[calc(100svh-0.25rem)] flex-col sm:h-[calc(100svh-0.5rem)]">
-          <header className="relative flex shrink-0 items-start justify-between gap-3 border-b border-[var(--color-border)] pb-2">
+          <header className="relative flex shrink-0 items-center justify-center gap-3 border-b border-[var(--color-border)] pb-2">
             <div>
               <h1 className="text-lg font-semibold tracking-tight sm:text-xl">Basic Leader Election in Ring Networks</h1>
             </div>
-            <button type="button" onClick={() => setDarkMode(!darkMode)} className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs font-medium text-[var(--color-muted)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]">
-              {darkMode ? 'Light theme' : 'Dark theme'}
-            </button>
           </header>
 
           {!store.validation.valid && (
-            <div className="relative mt-4 flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+            <div className="relative mt-4 flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               <span>{store.validation.message}</span>
               <button type="button" onClick={store.reset} className="shrink-0 underline underline-offset-2">Reset</button>
             </div>
           )}
 
-          <div className="relative mt-2 grid shrink-0 grid-cols-2 gap-px overflow-hidden border-y border-[var(--color-border)] bg-[var(--color-border)] sm:grid-cols-4">
+          <div className="relative mt-2 grid shrink-0 grid-cols-2 gap-px overflow-hidden border-y border-[var(--color-border)] bg-[var(--color-border)]">
             <div className="bg-[var(--color-bg)] px-2 py-1.5">
               <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-muted)]">Rounds</p>
               <p className="mt-0.5 text-base font-semibold">{store.simState.round} <span className="text-xs font-normal text-[var(--color-muted)]">of {nodeCount}</span></p>
@@ -51,14 +38,6 @@ export default function App() {
             <div className="bg-[var(--color-bg)] px-2 py-1.5">
               <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-muted)]">Messages sent</p>
               <p className="mt-0.5 text-base font-semibold">{messagesSent}</p>
-            </div>
-            <div className="bg-[var(--color-bg)] px-2 py-1.5">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-muted)]">Time bound</p>
-              <p className="mt-0.5 text-base font-semibold">O(n) <span className="text-xs font-normal text-[var(--color-muted)]">at most {nodeCount} rounds</span></p>
-            </div>
-            <div className="bg-[var(--color-bg)] px-2 py-1.5">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-muted)]">Message bound</p>
-              <p className="mt-0.5 text-base font-semibold">O(n^2) <span className="text-xs font-normal text-[var(--color-muted)]">at most {nodeCount * (nodeCount + 1) / 2}</span></p>
             </div>
           </div>
 
@@ -70,7 +49,7 @@ export default function App() {
             <div className="flex flex-col justify-between gap-2 lg:flex-row lg:items-center">
               <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
                 <button type="button" onClick={store.stepBack} disabled={!canGoBack} className="control-button">Previous</button>
-                <button type="button" onClick={() => store.setIsPlaying(!store.isPlaying)} disabled={!store.validation.valid || store.simState.done} className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-stone-50 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-500 dark:hover:bg-slate-400">
+                <button type="button" onClick={() => store.setIsPlaying(!store.isPlaying)} disabled={!store.validation.valid || store.simState.done} className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-stone-50 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40">
                   {store.isPlaying ? 'Pause' : 'Run'}
                 </button>
                 <button type="button" onClick={store.stepForward} disabled={!canStep} className="control-button">Next round</button>
@@ -78,14 +57,14 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs sm:flex sm:flex-wrap sm:items-center">
-                <div className="grid w-full grid-cols-2 rounded-lg border border-[var(--color-border)] p-0.5 sm:inline-flex sm:w-auto">
+                <div className="col-span-2 grid w-full grid-cols-2 rounded-lg border border-[var(--color-border)] p-0.5 sm:inline-flex sm:w-auto">
                   {['min', 'max'].map((mode) => (
                     <button type="button" key={mode} onClick={() => store.setMode(mode)} className={`rounded-md px-2.5 py-1.5 font-medium ${store.mode === mode ? 'bg-[var(--color-surface-subtle)] text-[var(--color-text)]' : 'text-[var(--color-muted)]'}`}>{mode === 'min' ? 'Min ID' : 'Max ID'}</button>
                   ))}
                 </div>
-                <div className="grid w-full grid-cols-3 rounded-lg border border-[var(--color-border)] p-0.5 sm:inline-flex sm:w-auto">
-                  {[0.5, 1, 2].map((speed) => (
-                    <button type="button" key={speed} onClick={() => store.setSpeed(speed)} className={`rounded-md px-2 py-1.5 font-medium ${store.speed === speed ? 'bg-[var(--color-surface-subtle)] text-[var(--color-text)]' : 'text-[var(--color-muted)]'}`}>{speed}x</button>
+                <div className="col-span-2 grid w-full grid-cols-2 rounded-lg border border-[var(--color-border)] p-0.5 sm:inline-flex sm:w-auto">
+                  {['cw', 'ccw'].map((dir) => (
+                    <button type="button" key={dir} onClick={() => store.setDirection(dir)} className={`rounded-md px-2.5 py-1.5 font-medium ${store.direction === dir ? 'bg-[var(--color-surface-subtle)] text-[var(--color-text)]' : 'text-[var(--color-muted)]'}`}>{dir === 'cw' ? 'Clockwise' : 'Counter Clockwise'}</button>
                   ))}
                 </div>
                 <button type="button" onClick={store.randomize} className="control-button w-full sm:w-auto">Randomize</button>

@@ -2,32 +2,25 @@ import React, { useRef, useState } from 'react';
 
 export function NodeComponent({
   index, totalNodes, nodeState, inputValue, coord, hasError, isLeader, isFollower,
-  onUpdateId, onSwap, onRemove, disabled,
+  onUpdateId, onSwap, onRemove, disabled, isStarted,
 }) {
   const { x, y, angle } = coord;
   const inputRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const labelX = 47 * Math.cos(angle);
-  const labelY = 47 * Math.sin(angle) + 4;
+  const labelX = 54 * Math.cos(angle);
+  const labelY = 54 * Math.sin(angle) + 4;
 
-  let ringClass = 'ring-1 ring-stone-300 dark:ring-slate-600';
-  let nodeClass = 'bg-[var(--color-surface)] dark:bg-slate-800';
+  let ringClass = 'ring-1 ring-stone-300';
+  let nodeClass = 'bg-[var(--color-surface)]';
   if (hasError) ringClass = 'ring-2 ring-amber-500';
   else if (isLeader) {
-    ringClass = 'ring-2 ring-emerald-700 dark:ring-emerald-400';
-    nodeClass = 'bg-emerald-50 dark:bg-emerald-950/30';
+    ringClass = 'ring-2 ring-emerald-700';
+    nodeClass = 'bg-emerald-50';
   } else if (isFollower) ringClass = 'ring-2 ring-rose-400/70';
 
   return (
     <g transform={`translate(${x}, ${y})`} className="group">
-      <text x={labelX} y={labelY} textAnchor="middle" className="pointer-events-none select-none fill-stone-500 font-mono text-[10px] font-semibold dark:fill-stone-400">Node-{index}</text>
-
-      {isLeader && (
-        <g transform="translate(0, -42)" className="pointer-events-none">
-          <rect x={-23} y={-8} width={46} height={16} rx={8} fill="var(--color-leader)" />
-          <text y={3.5} textAnchor="middle" fontSize="8" fontWeight="700" fill="#fffdfa" letterSpacing="0.7">LEADER</text>
-        </g>
-      )}
+      <text x={labelX} y={labelY} textAnchor="middle" className="pointer-events-none select-none fill-slate-800 font-sans text-[12px] font-bold tracking-tight">Node {index}</text>
 
       {isFollower && !isLeader && <circle cx={18} cy={-18} r={4} fill="var(--color-follower)" className="pointer-events-none" />}
 
@@ -73,10 +66,15 @@ export function NodeComponent({
         </div>
       </foreignObject>
 
-      {totalNodes > 2 && !disabled && (
-        <foreignObject x={14} y={19} width={40} height={18} className="overflow-visible">
-          <button type="button" onClick={(event) => { event.stopPropagation(); onRemove(index); }} className="h-4 rounded border border-rose-300 bg-[var(--color-surface)] px-1 text-[8px] font-medium leading-none text-rose-700 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 dark:border-rose-900 dark:text-rose-300" aria-label={`Remove node P${index}`}>
-            remove
+      {totalNodes > 2 && !disabled && !isStarted && (
+        <foreignObject x={10} y={-30} width={20} height={20} className="overflow-visible">
+          <button
+            type="button"
+            onClick={(event) => { event.stopPropagation(); onRemove(index); }}
+            className="flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-white shadow-sm opacity-100 transition-all hover:bg-rose-600 hover:scale-110 sm:opacity-0 sm:group-hover:opacity-100"
+            aria-label={`Remove node P${index}`}
+          >
+            <span className="mb-[1px] text-[14px] font-bold leading-none">&times;</span>
           </button>
         </foreignObject>
       )}

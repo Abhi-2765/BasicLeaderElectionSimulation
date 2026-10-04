@@ -1,5 +1,3 @@
-import React from 'react';
-
 export function RoundTable({ simState }) {
   const { history, nodes, round } = simState;
   if (history.length <= 1 && round === 0) return null;
@@ -11,7 +9,7 @@ export function RoundTable({ simState }) {
         <p className="mt-0.5 text-xs text-[var(--color-muted)]">{round} round{round === 1 ? '' : 's'} computed</p>
       </div>
 
-      <div className="max-h-[360px]">
+      <div className="max-h-[360px] overflow-auto">
         <table className="w-full border-collapse text-sm">
           <thead className="sticky top-0 z-10 bg-[var(--color-surface-subtle)]">
             <tr>
@@ -26,7 +24,7 @@ export function RoundTable({ simState }) {
           </thead>
           <tbody>
             {history.map((record) => (
-              <tr key={record.round} className={record.round === round ? 'bg-slate-50/70 dark:bg-slate-800/20' : ''}>
+              <tr key={record.round} className={record.round === round ? 'bg-slate-50/70' : ''}>
                 <td className="border-b border-[var(--color-border)] px-4 py-3 text-center font-mono text-xs font-semibold text-[var(--color-muted)]">{record.round}</td>
                 {record.nodes.map((node, index) => {
                   const isLeader = node.status === 'leader';
@@ -38,16 +36,16 @@ export function RoundTable({ simState }) {
 
                   if (record.round === 0) {
                     content = `Send ${node.id}`;
-                    className = 'bg-sky-50 text-sky-800 dark:bg-sky-950/30 dark:text-sky-200';
+                    className = 'bg-sky-50 text-sky-800';
                   } else if (isLeader) {
                     content = 'Leader';
-                    className = 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200';
+                    className = 'bg-emerald-50 text-emerald-800';
                   } else if (isForwarded) {
                     content = `Forward ${node.recv}`;
-                    className = 'bg-stone-100 text-stone-700 dark:bg-slate-700 dark:text-stone-200';
+                    className = 'bg-stone-100 text-stone-700';
                   } else if (isDropped) {
                     content = `Drop ${node.recv}`;
-                    className = 'bg-rose-50 text-rose-800 dark:bg-rose-950/30 dark:text-rose-200';
+                    className = 'bg-rose-50 text-rose-800';
                   } else if (isIdle) {
                     content = 'Idle';
                   }

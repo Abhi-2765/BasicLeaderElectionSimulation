@@ -1,35 +1,30 @@
-import React from 'react';
+export function DirectedEdge({ fromCoord, toCoord }) {
+  const { x: x1, y: y1 } = fromCoord;
+  const { x: x2, y: y2 } = toCoord;
 
-/**
- * Directed curved clockwise edge between two adjacent nodes on the ring.
- */
-export function DirectedEdge({ fromCoord, toCoord, radius, isHighlighted }) {
-  const { x: x1, y: y1, angle: a1 } = fromCoord;
-  const { x: x2, y: y2, angle: a2 } = toCoord;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  const nx = dx / len;
+  const ny = dy / len;
 
-  // Node radius in SVG units is 26px, leave a small gap for arrow marker
-  const nodeOffsetAngle = 0.16; // approx 9 degrees offset
-  const startAngle = a1 + nodeOffsetAngle;
-  const endAngle = a2 - nodeOffsetAngle;
-
-  const startX = 300 + radius * Math.cos(startAngle);
-  const startY = 300 + radius * Math.sin(startAngle);
-  const endX = 300 + radius * Math.cos(endAngle);
-  const endY = 300 + radius * Math.sin(endAngle);
-
-  // SVG arc command for clockwise circle arc
-  const pathD = `M ${startX} ${startY} A ${radius} ${radius} 0 0 1 ${endX} ${endY}`;
+  const nodeRadius = 30;
+  const startX = x1 + nx * nodeRadius;
+  const startY = y1 + ny * nodeRadius;
+  const endX = x2 - nx * nodeRadius;
+  const endY = y2 - ny * nodeRadius;
 
   return (
-    <g className="directed-edge transition-colors duration-200">
-      <path
-        d={pathD}
-        fill="none"
-        stroke={isHighlighted ? 'var(--color-undecided)' : 'var(--color-border-strong)'}
-        strokeWidth={isHighlighted ? 2.5 : 1.75}
-        strokeDasharray={isHighlighted ? 'none' : '4 3'}
-        markerEnd={isHighlighted ? 'url(#arrow-active)' : 'url(#arrow-normal)'}
-        className="transition-all duration-300"
+    <g className="directed-edge">
+      <line
+        x1={startX}
+        y1={startY}
+        x2={endX}
+        y2={endY}
+        stroke="var(--color-border-strong)"
+        strokeWidth={1.75}
+        strokeDasharray="4 3"
+        markerEnd="url(#arrow-normal)"
       />
     </g>
   );

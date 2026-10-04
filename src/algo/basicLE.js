@@ -1,20 +1,9 @@
-/**
- * LCR (Le Lann–Chang–Roberts) Leader Election Engine
- * Unidirectional ring topology with synchronous rounds.
- * Pure JavaScript, zero React dependencies, fully immutable.
- */
-
-/**
- * Validates an array of node IDs.
- * @param {Array<number|string>} ids
- * @returns {{ valid: boolean, errors: Record<number, string>, message: string | null }}
- */
 export function validateIds(ids) {
   const errors = {};
   let message = null;
 
-  if (!Array.isArray(ids) || ids.length === 0) {
-    return { valid: false, errors: {}, message: 'Ring must contain at least one node.' };
+  if (!Array.isArray(ids) || ids.length < 3) {
+    return { valid: false, errors: {}, message: 'Ring must contain at least 3 nodes.' };
   }
 
   if (ids.length > 20) {
@@ -53,19 +42,13 @@ export function validateIds(ids) {
   };
 }
 
-/**
- * Initializes a new simulation state.
- * @param {number[]} ids Array of unique integer IDs
- * @param {'min' | 'max'} [mode='min'] 'min' elects the minimum ID (user requirement); 'max' elects maximum ID
- * @returns {SimState}
- */
-export function init(ids, mode = 'min') {
+export function init(ids, mode = 'min', direction = 'cw') {
   const cleanIds = ids.map(Number);
   const n = cleanIds.length;
 
   const nodes = cleanIds.map((id) => ({
     id,
-    send: id, // In round 0, every node prepares to send its own ID
+    send: id,
     recv: null,
     status: 'unknown',
   }));
@@ -86,6 +69,7 @@ export function init(ids, mode = 'min') {
     leaderId: null,
     leaderIndex: null,
     mode,
+    direction,
     nodes,
     history: [initialRecord],
     stats: {
@@ -97,28 +81,17 @@ export function init(ids, mode = 'min') {
   };
 }
 
-/**
- * Computes whether value v is "better" than value u for leader election.
- * In 'min' mode, smaller values win (v < u).
- * In 'max' mode, larger values win (v > u).
- */
 export function isBetterCandidate(v, u, mode = 'min') {
   return mode === 'min' ? v < u : v > u;
 }
 
-/**
- * Advances the simulation by one synchronous round.
- * Pure function: returns a new state object without mutating the input.
- *
- * @param {SimState} state
- * @returns {{ next: SimState, events: PacketEvent[] }}
- */
+
 export function step(state) {
   if (state.done) {
     return { next: state, events: [] };
   }
 
-  const { nodes, mode, round, history, stats } = state;
+  const { nodes, mode, direction, round, history, stats } = state;
   const n = nodes.length;
   const nextRound = round + 1;
 
@@ -128,15 +101,13 @@ export function step(state) {
   let roundDrops = 0;
   let roundForwards = 0;
 
-  // Compute what each node receives simultaneously from its counter-clockwise predecessor
   const receivedValues = nodes.map((_, i) => {
-    const prevIndex = (i - 1 + n) % n;
-    return nodes[prevIndex].send;
+    const senderIndex = direction === 'cw' ? (i - 1 + n) % n : (i + 1) % n;
+    return nodes[senderIndex].send;
   });
 
-  // Compute next state for each node
   const nextNodes = nodes.map((node, i) => {
-    const prevIndex = (i - 1 + n) % n;
+    const senderIndex = direction === 'cw' ? (i - 1 + n) % n : (i + 1) % n;
     const v = receivedValues[i];
     const u = node.id;
 
@@ -146,11 +117,9 @@ export function step(state) {
     let comparison = '';
 
     if (v === null) {
-      // Nothing received this round
       nextSend = null;
       comparison = 'none';
     } else if (v === u) {
-      // The node's own ID came all the way around the ring!
       nextStatus = 'leader';
       nextSend = null;
       fate = 'leader';
@@ -159,7 +128,7 @@ export function step(state) {
       foundLeaderIndex = i;
 
       events.push({
-        from: prevIndex,
+        from: senderIndex,
         to: i,
         value: v,
         receiverId: u,
@@ -167,8 +136,6 @@ export function step(state) {
         comparison,
       });
     } else if (isBetterCandidate(v, u, mode)) {
-      // Received ID is a better candidate than own ID
-      // Node realizes it cannot be the leader -> becomes follower
       nextStatus = 'follower';
       nextSend = v;
       fate = 'forward';
@@ -176,7 +143,7 @@ export function step(state) {
       comparison = mode === 'min' ? `${v} < ${u}` : `${v} > ${u}`;
 
       events.push({
-        from: prevIndex,
+        from: senderIndex,
         to: i,
         value: v,
         receiverId: u,
@@ -184,15 +151,13 @@ export function step(state) {
         comparison,
       });
     } else {
-      // Received ID is worse than own ID -> drop it
-      // Status remains unchanged
       nextSend = null;
       fate = 'drop';
       roundDrops += 1;
       comparison = mode === 'min' ? `${v} > ${u}` : `${v} < ${u}`;
 
       events.push({
-        from: prevIndex,
+        from: senderIndex,
         to: i,
         value: v,
         receiverId: u,
@@ -209,7 +174,6 @@ export function step(state) {
     };
   });
 
-  // Total messages sent into the NEXT round
   const messagesToSendNextRound = nextNodes.filter((nd) => nd.send !== null).length;
   const isDone = foundLeaderId !== null || messagesToSendNextRound === 0;
 
@@ -233,6 +197,7 @@ export function step(state) {
     leaderId: foundLeaderId !== null ? foundLeaderId : state.leaderId,
     leaderIndex: foundLeaderIndex !== null ? foundLeaderIndex : state.leaderIndex,
     mode,
+    direction,
     nodes: nextNodes,
     history: [...history, roundRecord],
     stats: {
